@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import math
 import h5py
+import random
 
 ### READING USPS DATA ###
 def usps_read(file_name):
@@ -35,8 +36,8 @@ def generateSamples(data):
 ### PARTIAL DATA GENERATION ###
 def generatePartialData(Views):
 	size_of_data = 50
-	split_c = 0.6				### COMMON DATA POINTS ###
-	split_v1 = 0.2 				### VIEW1 SPLIT ### 
+	split_c = 0.6					### COMMON DATA POINTS ###
+	split_v1 = 0.2 					### VIEW1 SPLIT ### 
 	split_v2 = 0.2					### VIEW2 SPLIT ###
 	ncommon = math.ceil(split_c*size_of_data)
 	
@@ -48,26 +49,42 @@ def generatePartialData(Views):
 	for labeled_data in Views[1]:
 		YNc.append(labeled_data[0:ncommon,:])
 	
-	### PART MISSING IN VIEW1 ###
+	### PART MISSING IN VIEW 2 ###
 	XNx = []
 	for labeled_data in Views[0]:
 		XNx.append(labeled_data[ncommon:ncommon + math.ceil(split_v1*size_of_data),:])
 
-	### PART MISSING IN VIEW2 ###
+	### PART MISSING IN VIEW 1 ###
 	YNy = []
 	for labeled_data in Views[1]:
 		YNy.append(labeled_data[ncommon + math.ceil(split_v1*size_of_data):,:])
-	print(YNy[0].shape)
-	
-	print(XNx[0].shape)
+	return XNc,YNc,XNx,YNy
 
-data_usps = usps_read("usps.h5")
-data_mnist = mnist_read("mnist_train.csv")
-view1 = generateSamples(data_mnist)
-view2 = generateSamples(data_usps)
-Views = []
-Views.append(view1)
-Views.append(view2)
-generatePartialData(Views)
-# v1,v2 = getViews(X)
-# print(v2)
+### FUNCTION TO GENERATE OUTLIERS IN THE AVAILABLE DATA BY SWAPPING 10% OF THE SAMPLES
+def generateOutliers(XNc,XNx):
+	X = []
+	for i in range(10):
+		X.append(np.concatenate((XNc[i],XNx[i]),axis = 0)) 				### CONCATENATING XNX AND XNC ###
+	swaps = math.floor(0.1 * X[0].shape[0]) 							### 10% OF DATA SWAPPED BETWEEN CLASSES ###
+	for i in range(0,10,2):
+		swapped_index = random.sample(range(0, X[i].shape[0]), swaps)
+		for j in swapped_index:			 								### SWAPPING DATA IN ADJACENT CLASSES ###
+			temp = X[i][j]
+			X[i][j] = X[i+1][j]
+			X[i+1][j] = temp
+	return X 															### DATA WITH OUTLIERS ###
+
+### MAIN CALLING FUNCTION ###
+def main():
+	data_usps = usps_read("usps.h5")
+	data_mnist = mnist_read("mnist_train.csv")
+	view1 = generateSamples(data_mnist)
+	view2 = generateSamples(data_usps)
+	Views = []
+	Views.append(view1)
+	Views.append(view2)
+	XNc,YNc,XNx,YNy = generatePartialData(Views)
+	X = generateOutliers(XNc,XNx)
+	print(X)
+
+main()
