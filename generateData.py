@@ -72,19 +72,22 @@ def generateOutliers(XNc,XNx):
 			temp = X[i][j]
 			X[i][j] = X[i+1][j]
 			X[i+1][j] = temp
-	return X 															### DATA WITH OUTLIERS ###
+	for i in range(10):
+		XNc[i] = X[i][0:XNc[i].shape[0],:]
+		XNx[i] = X[i][XNc[i].shape[0]:,:] 
+	return XNc,XNx 															### DATA WITH OUTLIERS ###
 
 ### MAIN CALLING FUNCTION ###
-def main():
-	data_usps = usps_read("usps.h5")
-	data_mnist = mnist_read("mnist_train.csv")
-	view1 = generateSamples(data_mnist)
-	view2 = generateSamples(data_usps)
-	Views = []
-	Views.append(view1)
-	Views.append(view2)
-	XNc,YNc,XNx,YNy = generatePartialData(Views)
-	X = generateOutliers(XNc,XNx)
-	print(X)
+# def main():
+# 	data_usps = usps_read("usps.h5")
+# 	data_mnist = mnist_read("mnist_train.csv")
+# 	view1 = generateSamples(data_mnist)
+# 	view2 = generateSamples(data_usps)
+# 	Views = []
+# 	Views.append(view1)
+# 	Views.append(view2)
+# 	XNc,YNc,XNx,YNy = generatePartialData(Views)
+# 	XNc,XNx = generateOutliers(XNc,XNx)
+# 	print(X)
 
-main()
+# main()
