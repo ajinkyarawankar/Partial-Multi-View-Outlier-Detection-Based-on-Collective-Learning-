@@ -15,6 +15,8 @@ def initialization(XNc,XNx,YNc,YNy,available_fraction,size):
 			temp1 = np.concatenate((temp1,YNc[i]),axis = 0)
 	XNc = temp
 	YNc = temp1
+	# XNc = XNc[:,0:XNc.shape[1]-1]
+	# YNc = YNc[:,0:YNc.shape[1]-1]
 	temp = 0
 	temp1 = 0
 	for i in range(10):
@@ -26,6 +28,9 @@ def initialization(XNc,XNx,YNc,YNy,available_fraction,size):
 			temp1 = np.concatenate((temp1,YNy[i]),axis = 0)
 	XNx = temp
 	YNy = temp1
+	# XNx = XNx[:,0:XNx.shape[1]-1]
+	# YNy = YNy[:,0:YNy.shape[1]-1]
+	
 	XNc_XNx = np.concatenate((XNc,XNx),axis = 0)
 	YNc_YNy = np.concatenate((YNc,YNy),axis = 0)
 	temp = np.mean(XNc_XNx,axis=0)
@@ -38,7 +43,7 @@ def initialization(XNc,XNx,YNc,YNy,available_fraction,size):
 	# print(YNx.shape)
 	return XNc,XNx,XNy,YNc,YNy,YNx
 
-def sampleRecover(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fraction,T,k,threshold):
+def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fraction,T,k,threshold):
 	missing_fraction = (1 - available_fraction)/2
 	X = np.concatenate((XNc,XNx),axis = 0)
 	X = np.concatenate((X,XNy),axis = 0)
@@ -53,34 +58,70 @@ def sampleRecover(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fraction,T,k,threshold)
 	ones_vec = ones_vec.reshape((ones_vec.shape[0],1))
 	# print(np.dot(ones_vec,ones_vec.T))
 	H = np.identity(size) - 1/size * (np.dot(ones_vec,ones_vec.T))
-	# H = H/(size-1)
+	H = H/(size-1)
 	C = np.dot(ones_vec,ones_vec.T)
 
-	for i in range(T):
+	for i in range(1):
 		diag_C = np.diag(np.diag(C))
-		print(diag_C.shape)
-		P = np.dot(diag_C,np.dot(np.dot(H,X),np.dot(X.T,H)))
-		PNcNx = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),0:int(size * available_fraction)]
-		PNxNx = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),int(size * available_fraction) : int(size * (missing_fraction + available_fraction))]
-		PNxNy = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),int(size * (available_fraction+missing_fraction)) : int(size * (2*missing_fraction + available_fraction))]
-		Q = np.dot(diag_C,np.dot(np.dot(H,Y),np.dot(Y.T,H)))
-		QNcNy = Q[int(size * (available_fraction+missing_fraction)) :,0:int(size * available_fraction)]
-		QNxNy = Q[int(size * (available_fraction + missing_fraction)) :,int(size * available_fraction) : int(size * (missing_fraction + available_fraction))]
-		QNyNy = Q[int(size * (available_fraction+missing_fraction)) :,int(size * (available_fraction+missing_fraction)) : int(size * (2*missing_fraction + available_fraction))]
-		
-		# YNx =  
-		YNx = -1 * np.dot(np.linalg.inv(PNxNx),(np.dot(PNcNx,YNc) + np.dot(PNxNy,YNy)))
-		XNy = -1 * np.dot(np.linalg.inv(QNyNy),(np.dot(QNcNy,XNc) + np.dot(QNxNy,XNx)))
+		# print(diag_C.shape)
+		# print(i)
+		for i in range(100): ###  FOR CONVERGENCE ###
+			P = np.dot(diag_C,np.dot(np.dot(H,X),np.dot(X.T,H))) 
+			PNcNx = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),0:int(size * available_fraction)]
+			PNxNx = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),int(size * available_fraction) : int(size * (missing_fraction + available_fraction))]
+			PNxNy = P[int(size * available_fraction) : int(size * (missing_fraction + available_fraction)),int(size * (available_fraction+missing_fraction)) : int(size * (2*missing_fraction + available_fraction))]
+			
+			### TO GUEAGANTEE THE INVERTIBILITY, WE USUALLY ADD A SMALL PERTURBATION OF 10^-6 TO EACH MAIN DIAGONAL ELEMENT OF PNxNx ###
+			a = np.zeros((PNxNx.shape[0], PNxNx.shape[1]), float)
+			np.fill_diagonal(a, 0.000001)
+			PNxNx = PNxNx + a
+			YNx = -1 * np.dot(np.linalg.inv(PNxNx),(np.dot(PNcNx,YNc) + np.dot(PNxNy,YNy)))
+			Y = np.concatenate((YNc,YNx),axis = 0)
+			Y = np.concatenate((Y,YNy),axis = 0)
+			
 
-		
-		print(XNy.shape,YNx.shape)
+			Q = np.dot(diag_C,np.dot(np.dot(H,Y),np.dot(Y.T,H)))
+			QNcNy = Q[int(size * (available_fraction+missing_fraction)) :,0:int(size * available_fraction)]
+			QNxNy = Q[int(size * (available_fraction + missing_fraction)) :,int(size * available_fraction) : int(size * (missing_fraction + available_fraction))]
+			QNyNy = Q[int(size * (available_fraction+missing_fraction)) :,int(size * (available_fraction+missing_fraction)) : int(size * (2*missing_fraction + available_fraction))]
+			
+			XNy = -1 * np.dot(np.linalg.inv(QNyNy),(np.dot(QNcNy,XNc) + np.dot(QNxNy,XNx)))
+
+			X = np.concatenate((XNc,XNx),axis = 0)
+			X = np.concatenate((X,XNy),axis = 0)
+			
+			print("----------------------------------")
+			print(XNy)
+			print("----------------------------------")
+			
 		# print("adadasda")
 		# print(QNcNy.shape)
 		# print(QNxNy.shape)
 		# print(QNyNy.shape)
 		# print("----------------------")
 	# print(X.shape)
-	
+
+def eucidean_distance(x,y,attributes):
+	dist_sq=0
+	for i in attributes:
+		dist_sq+=math.pow(x[i]-y[i],2)
+	return math.sqrt(dist_sq)
+
+def calc_distances(record,train_data,attribute_list,dist_formula):
+	distances=[]
+	train=np.array(train_data.values)
+	for i in train:
+		distances.append((dist_formula(record,i,attribute_list),i))
+	return distances
+
+def get_k_neighbours(distances,k):
+	k_neighbours=[]
+	distances.sort(key=lambda x: x[0])
+	for i in range(k):
+		k_neighbours.append(distances[i])
+	return k_neighbours
+
+
 def main():
 	data_usps = usps_read("usps.h5")
 	data_mnist = mnist_read("mnist_train.csv")
@@ -93,7 +134,7 @@ def main():
 	XNc,XNx = generateOutliers(XNc,XNx)
 	size = 500
 	XNc,XNx,XNy,YNc,YNy,YNx = initialization(XNc,XNx,YNc,YNy,0.6,size)
-	sampleRecover(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
+	sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
 	
 	# print(XNx)
 
