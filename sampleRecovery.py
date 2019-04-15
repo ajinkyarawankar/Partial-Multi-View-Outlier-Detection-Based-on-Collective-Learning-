@@ -80,10 +80,10 @@ def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fracti
     X = np.concatenate((XNc,XNx),axis = 0)
     X = np.concatenate((X,XNy),axis = 0)
 
-    print(X.shape)
+    print("Shape of X view ",X.shape)
     Y = np.concatenate((YNc,YNx),axis = 0)
     Y = np.concatenate((Y,YNy),axis = 0)
-    print(Y.shape)
+    print("Shape of Y view ",Y.shape)
 
     ### HSIC ###
     ones_vec = np.array(([1]*size))
@@ -92,7 +92,8 @@ def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fracti
     H = np.identity(size) - 1/size * (np.dot(ones_vec,ones_vec.T))
     H = H/(size-1)
     C = np.dot(ones_vec,ones_vec.T)
-
+#     C = np.diag(np.diag(C))
+    
     for i in range(2):
         print("Iteration ",i,"/t")
         diag_C = np.diag(np.diag(C))
@@ -144,31 +145,34 @@ def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fracti
 
         # Knn for calculating similarity matrices
         %time    neighbour_list =  knn_predict(X,10)
-        WX = np.array(([0]*size))
+        WX = np.zeros(shape =(size,size))
         for i in range(size):
             for j in range(size):
-                if any(np.array_equal(x, neighbour_list_list[i][0]) for x in neighbour_list[j][1]):
+                if any(np.array_equal(x, neighbour_list[i][0]) for x in neighbour_list[j][1]):
                     WX[i][j] = 1
-                if any(np.array_equal(x, neighbour_list_list[j][0]) for x in neighbour_list[i][1]):
-                    WY[i][j] = 1
+                if any(np.array_equal(x, neighbour_list[j][0]) for x in neighbour_list[i][1]):
+                    WX[i][j] = 1
         print("WX shape ",WX.shape)
         %time    neighbour_list =  knn_predict(Y,10)
-        WY = np.array(([0]*size))
+        WY = np.zeros(shape =(size,size))
         for i in range(size):
             for j in range(size):
-                if any(np.array_equal(x, neighbour_list_list[i][0]) for x in neighbour_list[j][1]):
+                if any(np.array_equal(x, neighbour_list[i][0]) for x in neighbour_list[j][1]):
                     WY[i][j] = 1
-                if any(np.array_equal(x, neighbour_list_list[j][0]) for x in neighbour_list[i][1]):
+                if any(np.array_equal(x, neighbour_list[j][0]) for x in neighbour_list[i][1]):
                     WY[i][j] = 1
         print("WY shape ",WY.shape)
         s = np.dot(np.dot(H,WX),np.dot(H,WY))
         s = s.diagonal()
+#         s = np.diag(np.diag(s))
         s = np.interp(s, (s.min(), s.max()), (0.1, 1))
-        print("s shape ",s.shape)
-        C = np.dot(s,s.T)
+        S = np.zeros(shape =(size,size))
+        np.fill_diagonal(S, s)
+        print("S shape ",S.shape)
+        C = np.dot(S,S.T)
         print("C shape ",C.shape)
     # print(X.shape)
-    return s,X,Y
+    return S.diagonal(),X,Y
 
 
 def main():
@@ -183,8 +187,8 @@ def main():
     XNc,XNx = generateOutliers(XNc,XNx)
     size = 500
     XNc,XNx,XNy,YNc,YNy,YNx = initialization(XNc,XNx,YNc,YNy,0.6,size)
-    s,X,Y = sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
-
+    S,X,Y = sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
+    print("Outliers % ",np.array([ a<0.11 for a in s]).mean())
     # print(XNx)
 
 
