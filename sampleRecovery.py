@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import math
 from generateData import *
+import operator
+from sklearn.metrics import mean_squared_error
+import copy
 
 def initialization(XNc,XNx,YNc,YNy,available_fraction,size):
     temp = 0
@@ -90,7 +93,8 @@ def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fracti
     H = H/(size-1)
     C = np.dot(ones_vec,ones_vec.T)
 
-    for i in range(1):
+    for i in range(2):
+        print("Iteration ",i,"/t")
         diag_C = np.diag(np.diag(C))
         # print(diag_C.shape)
         # print(i)
@@ -137,16 +141,34 @@ def sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,available_fracti
         # print(QNyNy.shape)
         # print("----------------------")
         print("After convergence error in XNy and YNx view is - ",error_x,error_y)
-#         neighbour_list = knn_predict(X,10)
-        neighbour_list =  knn_predict(X,10)
+
+        # Knn for calculating similarity matrices
+        %time    neighbour_list =  knn_predict(X,10)
         WX = np.array(([0]*size))
         for i in range(size):
             for j in range(size):
-                if any(np.array_equal(x, neighbour_listghbour_list[i][0]) for x in neighbour_list[j][1]):
+                if any(np.array_equal(x, neighbour_list_list[i][0]) for x in neighbour_list[j][1]):
                     WX[i][j] = 1
-        
+                if any(np.array_equal(x, neighbour_list_list[j][0]) for x in neighbour_list[i][1]):
+                    WY[i][j] = 1
+        print("WX shape ",WX.shape)
+        %time    neighbour_list =  knn_predict(Y,10)
+        WY = np.array(([0]*size))
+        for i in range(size):
+            for j in range(size):
+                if any(np.array_equal(x, neighbour_list_list[i][0]) for x in neighbour_list[j][1]):
+                    WY[i][j] = 1
+                if any(np.array_equal(x, neighbour_list_list[j][0]) for x in neighbour_list[i][1]):
+                    WY[i][j] = 1
+        print("WY shape ",WY.shape)
+        s = np.dot(np.dot(H,WX),np.dot(H,WY))
+        s = s.diagonal()
+        s = np.interp(s, (s.min(), s.max()), (0.1, 1))
+        print("s shape ",s.shape)
+        C = np.dot(s,s.T)
+        print("C shape ",C.shape)
     # print(X.shape)
-
+    return s,X,Y
 
 
 def main():
@@ -161,7 +183,7 @@ def main():
     XNc,XNx = generateOutliers(XNc,XNx)
     size = 500
     XNc,XNx,XNy,YNc,YNy,YNx = initialization(XNc,XNx,YNc,YNy,0.6,size)
-    sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
+    s,X,Y = sampleRecover_OutlierDetection(XNc,XNx,XNy,YNc,YNy,YNx,size,0.6,10,7,0.5)
 
     # print(XNx)
 
